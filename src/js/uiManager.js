@@ -5,7 +5,6 @@
 
 /**
  * Initialize tab navigation
- * @param {function} onTabChange - Callback when tab changes
  */
 function initializeTabs(onTabChange = null) {
     const tabButtons = document.querySelectorAll('.tab-button');
@@ -24,29 +23,24 @@ function initializeTabs(onTabChange = null) {
 
 /**
  * Switch to a specific tab
- * @param {string} tabName - Tab identifier
  */
 function switchTab(tabName) {
-    // Hide all tab contents
     const tabContents = document.querySelectorAll('.tab-content');
     tabContents.forEach(content => {
         content.classList.add('hidden');
     });
     
-    // Remove active class from all buttons
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach(button => {
         button.classList.remove('active');
         button.classList.add('inactive');
     });
     
-    // Show selected tab content
     const selectedTab = document.getElementById(`${tabName}-tab`);
     if (selectedTab) {
         selectedTab.classList.remove('hidden');
     }
     
-    // Activate selected button
     const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
     if (selectedButton) {
         selectedButton.classList.add('active');
@@ -56,19 +50,16 @@ function switchTab(tabName) {
 
 /**
  * Update console output
- * @param {string} message - Message to display
- * @param {boolean} append - Whether to append or replace
  */
 function updateConsole(message, append = false) {
-    const console = document.getElementById('output-console');
-    if (console) {
+    const consoleEl = document.getElementById('output-console');
+    if (consoleEl) {
         if (append) {
-            console.textContent += '\n' + message;
+            consoleEl.textContent += '\n' + message;
         } else {
-            console.textContent = message;
+            consoleEl.textContent = message;
         }
-        // Auto-scroll to bottom
-        console.scrollTop = console.scrollHeight;
+        consoleEl.scrollTop = consoleEl.scrollHeight;
     }
 }
 
@@ -76,15 +67,14 @@ function updateConsole(message, append = false) {
  * Clear console
  */
 function clearConsole() {
-    const console = document.getElementById('output-console');
-    if (console) {
-        console.textContent = '';
+    const consoleEl = document.getElementById('output-console');
+    if (consoleEl) {
+        consoleEl.textContent = '';
     }
 }
 
 /**
  * Log message to console
- * @param {string} message - Message to log
  */
 function logMessage(message) {
     updateConsole(message, true);
@@ -92,8 +82,6 @@ function logMessage(message) {
 
 /**
  * Update LiDAR status display
- * @param {string} status - Status message
- * @param {boolean} isSuccess - Whether status is positive
  */
 function updateLidarStatus(status, isSuccess = false) {
     const statusEl = document.getElementById('lidar-status');
@@ -109,7 +97,6 @@ function updateLidarStatus(status, isSuccess = false) {
 
 /**
  * Update data statistics display
- * @param {object} stats - Statistics object
  */
 function updateStatistics(stats) {
     if (!stats) return;
@@ -132,7 +119,6 @@ function updateStatistics(stats) {
 
 /**
  * Get discharge input value
- * @returns {number} Discharge in m³/s
  */
 function getDischargeValue() {
     const input = document.getElementById('discharge-input');
@@ -141,7 +127,6 @@ function getDischargeValue() {
 
 /**
  * Set discharge input value
- * @param {number} value - Discharge value
  */
 function setDischargeValue(value) {
     const input = document.getElementById('discharge-input');
@@ -152,7 +137,6 @@ function setDischargeValue(value) {
 
 /**
  * Get GeoJSON file input
- * @returns {File} Selected file or null
  */
 function getGeoJsonFile() {
     const input = document.getElementById('geojson-upload');
@@ -161,7 +145,6 @@ function getGeoJsonFile() {
 
 /**
  * Get LiDAR CSV file input
- * @returns {File} Selected file or null
  */
 function getLidarCsvFile() {
     const input = document.getElementById('lidar-csv-upload');
@@ -170,7 +153,6 @@ function getLidarCsvFile() {
 
 /**
  * Get LiDAR GeoJSON file input
- * @returns {File} Selected file or null
  */
 function getLidarGeoJsonFile() {
     const input = document.getElementById('lidar-geojson-upload');
@@ -189,7 +171,6 @@ function clearFileInputs() {
 
 /**
  * Get button elements
- * @returns {object} Button element references
  */
 function getButtons() {
     return {
@@ -202,7 +183,6 @@ function getButtons() {
 
 /**
  * Show error message
- * @param {string} message - Error message
  */
 function showError(message) {
     updateConsole(`✗ Error: ${message}`);
@@ -211,7 +191,6 @@ function showError(message) {
 
 /**
  * Show success message
- * @param {string} message - Success message
  */
 function showSuccess(message) {
     updateConsole(`✓ ${message}`);
@@ -220,7 +199,6 @@ function showSuccess(message) {
 
 /**
  * Update river count in data tab
- * @param {number} count - Number of river segments
  */
 function updateRiverCount(count) {
     const el = document.getElementById('river-count');
@@ -231,8 +209,6 @@ function updateRiverCount(count) {
 
 /**
  * Export data as JSON file
- * @param {object} data - Data to export
- * @param {string} filename - Filename (without extension)
  */
 function exportAsJSON(data, filename = 'river-analysis') {
     try {
@@ -255,8 +231,6 @@ function exportAsJSON(data, filename = 'river-analysis') {
 
 /**
  * Read file as text
- * @param {File} file - File to read
- * @returns {Promise<string>} File content
  */
 function readFileAsText(file) {
     return new Promise((resolve, reject) => {
@@ -269,8 +243,6 @@ function readFileAsText(file) {
 
 /**
  * Enable/disable button
- * @param {string} buttonId - Button element ID
- * @param {boolean} enabled - Whether to enable
  */
 function setButtonEnabled(buttonId, enabled = true) {
     const btn = document.getElementById(buttonId);
@@ -288,8 +260,6 @@ function setButtonEnabled(buttonId, enabled = true) {
 
 /**
  * Show loading spinner on button
- * @param {string} buttonId - Button element ID
- * @param {boolean} show - Whether to show
  */
 function setButtonLoading(buttonId, show = true) {
     const btn = document.getElementById(buttonId);
@@ -299,7 +269,6 @@ function setButtonLoading(buttonId, show = true) {
             btn.innerHTML = '<i class="ph-spinner ph-spin ph-lg"></i> Processing...';
         } else {
             btn.disabled = false;
-            // Restore original content
             if (buttonId === 'run-analysis-btn') {
                 btn.innerHTML = '<i class="ph-play-circle ph-lg"></i> Run Analysis';
             } else if (buttonId === 'merge-lidar-btn') {
@@ -309,26 +278,4 @@ function setButtonLoading(buttonId, show = true) {
     }
 }
 
-export {
-    initializeTabs,
-    switchTab,
-    updateConsole,
-    clearConsole,
-    logMessage,
-    updateLidarStatus,
-    updateStatistics,
-    getDischargeValue,
-    setDischargeValue,
-    getGeoJsonFile,
-    getLidarCsvFile,
-    getLidarGeoJsonFile,
-    clearFileInputs,
-    getButtons,
-    showError,
-    showSuccess,
-    updateRiverCount,
-    exportAsJSON,
-    readFileAsText,
-    setButtonEnabled,
-    setButtonLoading
-};
+console.log('UI manager module loaded');
