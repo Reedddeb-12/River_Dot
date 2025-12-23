@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>River Erosion & Sedimentation Hotspot Predictor</title>
+    
+    <!-- External Libraries CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+    <script src='https://unpkg.com/papaparse@5/papaparse.min.js'></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="src/css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Control Panel -->
+    <div class="control-panel absolute top-4 left-4 w-full max-w-md bg-gray-900/80 backdrop-blur-md p-5 rounded-2xl shadow-2xl border border-white/10">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="bg-blue-500/10 p-3 rounded-xl">
+                <i class="ph-river ph-2x text-blue-400"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white">River Hotspot Predictor</h1>
+                <p class="text-xs text-gray-400">LiDAR-Enhanced Analysis</p>
+            </div>
+        </div>
+        
+        <!-- Tab Navigation -->
+        <div class="flex gap-2 mb-4 bg-gray-800/50 p-1 rounded-lg">
+            <button class="tab-button active" data-tab="analysis">
+                <i class="ph-chart-bar-horizontal"></i> Analysis
+            </button>
+            <button class="tab-button inactive" data-tab="lidar">
+                <i class="ph-satellite"></i> LiDAR
+            </button>
+            <button class="tab-button inactive" data-tab="data">
+                <i class="ph-database"></i> Data
+            </button>
+        </div>
+
+        <!-- Analysis Tab -->
+        <div id="analysis-tab" class="tab-content space-y-4">
+            <div class="text-xs bg-blue-500/10 p-3 rounded-lg border border-blue-500/20 mb-4">
+                <p class="text-gray-300"><i class="ph-info text-blue-400"></i> Adjust discharge and upload datasets to analyze erosion risk.</p>
+            </div>
+
+            <div>
+                <label for="discharge-input" class="block text-sm font-medium text-gray-300 mb-2">Discharge (m³/s)</label>
+                <input type="number" id="discharge-input" value="300" min="10" max="5000" step="10" class="w-full bg-gray-800/50 border border-white/10 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label for="geojson-upload" class="block text-sm font-medium text-gray-300 mb-2">GeoJSON Dataset</label>
+                <input type="file" id="geojson-upload" accept=".geojson,.json" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-500/10 file:text-blue-300 hover:file:bg-blue-500/20 cursor-pointer">
+                <p class="text-xs text-gray-500 mt-1">Required: FeatureCollection with river segments</p>
+            </div>
+
+            <button id="run-analysis-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-blue-500/30">
+                <i class="ph-play-circle ph-lg"></i>
+                Run Analysis
+            </button>
+
+            <div class="mt-4">
+                <h3 class="text-sm font-semibold flex items-center gap-2 mb-2"><i class="ph-terminal-window"></i>Log</h3>
+                <pre id="output-console" class="bg-black/30 p-3 rounded-lg text-xs overflow-x-auto h-32 border border-white/10 font-mono">Ready for analysis...</pre>
+            </div>
+        </div>
+
+        <!-- LiDAR Tab -->
+        <div id="lidar-tab" class="tab-content space-y-4 hidden">
+            <div class="lidar-info p-4 rounded-lg">
+                <p class="text-sm text-gray-300 mb-3"><i class="ph-check-circle text-green-400"></i> <strong>LiDAR Integration Features:</strong></p>
+                <ul class="text-xs text-gray-400 space-y-2">
+                    <li>• Bank height estimation</li>
+                    <li>• Vegetation density mapping</li>
+                    <li>• Slope analysis</li>
+                    <li>• Terrain classification</li>
+                </ul>
+            </div>
+
+            <div>
+                <label for="lidar-csv-upload" class="block text-sm font-medium text-gray-300 mb-2">LiDAR CSV Data</label>
+                <input type="file" id="lidar-csv-upload" accept=".csv,.txt" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-green-500/10 file:text-green-300 hover:file:bg-green-500/20 cursor-pointer">
+                <p class="text-xs text-gray-500 mt-1">Format: segment_id, latitude, longitude, bank_height_m, veg_density, ...</p>
+            </div>
+
+            <div>
+                <label for="lidar-geojson-upload" class="block text-sm font-medium text-gray-300 mb-2">LiDAR GeoJSON</label>
+                <input type="file" id="lidar-geojson-upload" accept=".geojson,.json" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-green-500/10 file:text-green-300 hover:file:bg-green-500/20 cursor-pointer">
+                <p class="text-xs text-gray-500 mt-1">GeoJSON with LiDAR properties</p>
+            </div>
+
+            <button id="merge-lidar-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2">
+                <i class="ph-plus"></i>
+                Merge LiDAR Data
+            </button>
+
+            <div>
+                <h3 class="text-sm font-semibold mb-2">LiDAR Status</h3>
+                <div id="lidar-status" class="bg-gray-800/50 p-3 rounded-lg text-xs text-gray-400 border border-white/10">No LiDAR data loaded</div>
+            </div>
+        </div>
+
+        <!-- Data Tab -->
+        <div id="data-tab" class="tab-content space-y-4 hidden">
+            <div>
+                <h3 class="text-sm font-semibold mb-3">Active Datasets</h3>
+                <div id="dataset-list" class="space-y-2">
+                    <div class="bg-gray-800/50 p-3 rounded-lg text-xs border border-white/10">
+                        <p class="text-gray-300"><strong>River Data:</strong> <span id="river-count">4</span> segments loaded</p>
+                        <p class="text-gray-400 text-xs mt-1">Ganga River (default)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-semibold mb-2">Data Statistics</h3>
+                <div id="data-stats" class="space-y-2 text-xs text-gray-400">
+                    <div class="flex justify-between"><span>Segments Analyzed:</span> <span id="stat-segments">0</span></div>
+                    <div class="flex justify-between"><span>High Erosion:</span> <span id="stat-high-erosion" class="text-red-400">0</span></div>
+                    <div class="flex justify-between"><span>Medium Erosion:</span> <span id="stat-med-erosion" class="text-orange-400">0</span></div>
+                    <div class="flex justify-between"><span>Stable:</span> <span id="stat-stable" class="text-green-400">0</span></div>
+                    <div class="flex justify-between"><span>High Deposition:</span> <span id="stat-deposition" class="text-indigo-400">0</span></div>
+                </div>
+            </div>
+
+            <button id="export-data-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2">
+                <i class="ph-download"></i>
+                Export Results (JSON)
+            </button>
+
+            <button id="clear-data-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2">
+                <i class="ph-trash"></i>
+                Reset to Default
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Application JavaScript -->
+    <script src="src/js/constants.js"></script>
+    <script src="src/js/analyzeRiver.js"></script>
+    <script src="src/js/lidarProcessor.js"></script>
+    <script src="src/js/mapManager.js"></script>
+    <script src="src/js/uiManager.js"></script>
+    <script src="src/js/app.js"></script>
+</body>
+</html>
