@@ -5,11 +5,6 @@
 
 /**
  * Calculate distance between two points
- * @param {number} lat1 - First latitude
- * @param {number} lon1 - First longitude
- * @param {number} lat2 - Second latitude
- * @param {number} lon2 - Second longitude
- * @returns {number} Distance in decimal degrees
  */
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const dLat = Math.pow(lat2 - lat1, 2);
@@ -19,8 +14,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 /**
  * Parse CSV text into array of objects
- * @param {string} csvText - CSV content as text
- * @returns {array} Array of objects with CSV data
  */
 function parseCSVText(csvText) {
     const lines = csvText.split('\n').filter(line => line.trim().length > 0);
@@ -29,10 +22,8 @@ function parseCSVText(csvText) {
         throw new Error('CSV must contain header and at least one data row');
     }
     
-    // Parse header
     const header = lines[0].split(',').map(h => h.trim());
     
-    // Validate required columns
     const requiredColumns = ['segment_id', 'latitude', 'longitude'];
     const missingColumns = requiredColumns.filter(col => !header.includes(col));
     
@@ -40,7 +31,6 @@ function parseCSVText(csvText) {
         throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
     }
     
-    // Parse data rows
     const data = [];
     for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim());
@@ -49,7 +39,6 @@ function parseCSVText(csvText) {
         header.forEach((column, idx) => {
             const value = values[idx];
             
-            // Try to parse as number
             if (!isNaN(value) && value !== '') {
                 obj[column] = parseFloat(value);
             } else {
@@ -57,7 +46,6 @@ function parseCSVText(csvText) {
             }
         });
         
-        // Only add if has required fields
         if (obj.segment_id && obj.latitude && obj.longitude) {
             data.push(obj);
         }
@@ -72,8 +60,6 @@ function parseCSVText(csvText) {
 
 /**
  * Process LiDAR CSV file
- * @param {string} csvText - CSV file content
- * @returns {array} Array of LiDAR point objects
  */
 function processLidarCSV(csvText) {
     try {
@@ -86,8 +72,6 @@ function processLidarCSV(csvText) {
 
 /**
  * Process LiDAR GeoJSON data
- * @param {object} geoJsonData - GeoJSON FeatureCollection
- * @returns {array} Array of LiDAR point objects
  */
 function processLidarGeoJSON(geoJsonData) {
     if (!geoJsonData.features || !Array.isArray(geoJsonData.features)) {
@@ -113,10 +97,6 @@ function processLidarGeoJSON(geoJsonData) {
 
 /**
  * Find nearest LiDAR point to a location
- * @param {number} lat - Target latitude
- * @param {number} lon - Target longitude
- * @param {array} lidarPoints - Array of LiDAR points
- * @returns {object} Nearest LiDAR point
  */
 function findNearestLidarPoint(lat, lon, lidarPoints) {
     let nearestPoint = null;
@@ -135,8 +115,6 @@ function findNearestLidarPoint(lat, lon, lidarPoints) {
 
 /**
  * Get segment center from geometry
- * @param {object} geometry - GeoJSON geometry object
- * @returns {object} Center point with lat and lon
  */
 function getSegmentCenter(geometry) {
     if (!geometry || !geometry.coordinates) {
@@ -144,7 +122,6 @@ function getSegmentCenter(geometry) {
     }
     
     const coords = geometry.coordinates;
-    let lat = 0, lon = 0;
     
     if (geometry.type === 'LineString') {
         const midIndex = Math.floor(coords.length / 2);
@@ -166,9 +143,6 @@ function getSegmentCenter(geometry) {
 
 /**
  * Merge LiDAR data with river segments
- * @param {object} riverGeoJSON - River GeoJSON FeatureCollection
- * @param {array} lidarArray - Array of LiDAR points
- * @returns {object} River GeoJSON with updated LiDAR properties
  */
 function mergeLidarWithRiver(riverGeoJSON, lidarArray) {
     if (!riverGeoJSON || !riverGeoJSON.features) {
@@ -186,11 +160,9 @@ function mergeLidarWithRiver(riverGeoJSON, lidarArray) {
             return feature;
         }
         
-        // Find nearest LiDAR point
         const nearest = findNearestLidarPoint(center.latitude, center.longitude, lidarArray);
         
         if (nearest) {
-            // Update LiDAR properties
             if (nearest.bank_height_m) {
                 feature.properties.lidar_avg_bank_height_m = nearest.bank_height_m;
             }
@@ -207,7 +179,6 @@ function mergeLidarWithRiver(riverGeoJSON, lidarArray) {
                 feature.properties.manning_n = nearest.roughness_coefficient;
             }
             
-            // Add metadata
             feature.properties.lidar_merged = true;
             feature.properties.lidar_source_id = nearest.segment_id;
         }
@@ -223,8 +194,6 @@ function mergeLidarWithRiver(riverGeoJSON, lidarArray) {
 
 /**
  * Validate LiDAR data
- * @param {array} lidarArray - Array of LiDAR points
- * @returns {object} Validation result
  */
 function validateLidarData(lidarArray) {
     const result = {
@@ -243,13 +212,11 @@ function validateLidarData(lidarArray) {
     let validPoints = 0;
     
     lidarArray.forEach((point, idx) => {
-        // Check required fields
         if (!point.latitude || !point.longitude) {
             result.errors.push(`Point ${idx}: Missing latitude or longitude`);
             return;
         }
         
-        // Validate coordinate ranges
         if (point.latitude < -90 || point.latitude > 90) {
             result.errors.push(`Point ${idx}: Invalid latitude ${point.latitude}`);
             return;
@@ -260,7 +227,6 @@ function validateLidarData(lidarArray) {
             return;
         }
         
-        // Check optional fields ranges
         if (point.bank_height_m !== undefined) {
             if (point.bank_height_m < 0 || point.bank_height_m > 50) {
                 result.warnings.push(`Point ${idx}: Bank height ${point.bank_height_m}m seems unusual`);
@@ -290,8 +256,6 @@ function validateLidarData(lidarArray) {
 
 /**
  * Get LiDAR statistics
- * @param {array} lidarArray - Array of LiDAR points
- * @returns {object} Statistics object
  */
 function getLidarStatistics(lidarArray) {
     if (!Array.isArray(lidarArray) || lidarArray.length === 0) {
@@ -336,14 +300,4 @@ function getLidarStatistics(lidarArray) {
     return stats;
 }
 
-export {
-    calculateDistance,
-    parseCSVText,
-    processLidarCSV,
-    processLidarGeoJSON,
-    findNearestLidarPoint,
-    getSegmentCenter,
-    mergeLidarWithRiver,
-    validateLidarData,
-    getLidarStatistics
-};
+console.log('LiDAR processor module loaded');
