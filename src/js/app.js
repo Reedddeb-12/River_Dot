@@ -11,7 +11,9 @@ let appState = {
     currentGeoJSON: null,
     lidarData: null,
     analysisResults: null,
-    lastDischarge: 300
+    lastDischarge: 300,
+    map: null,
+    riverLayer: null
 };
 
 // ========================================
@@ -23,7 +25,7 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 /**
  * Initialize the entire application
  */
-async function initializeApp() {
+function initializeApp() {
     try {
         // 1. Initialize Map
         initializeMapView();
@@ -39,7 +41,7 @@ async function initializeApp() {
         setupEventListeners();
         
         // 5. Run initial analysis
-        await performAnalysis();
+        performAnalysis();
         
         showSuccess('Application initialized successfully');
     } catch (error) {
@@ -52,21 +54,43 @@ async function initializeApp() {
  * Initialize map and layers
  */
 function initializeMapView() {
-    // Initialize map
-    initializeMap(APP_CONFIG.defaultMapCenter, APP_CONFIG.defaultZoom);
-    
-    // Add tile layer
-    addTileLayer(MAP_CONFIG.tileLayer, {
-        attribution: MAP_CONFIG.attribution,
-        subdomains: MAP_CONFIG.subdomains,
-        maxZoom: MAP_CONFIG.maxZoom
-    });
-    
-    // Load India boundary
-    loadIndiaBoundary(MAP_CONFIG.indiaMapUrl, MAP_CONFIG.indiaStyle);
-    
-    // Add zoom controls
-    addZoomControls('bottomright');
+    try {
+        // Initialize map
+        appState.map = L.map('map', {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([22, 82], 4.5);
+        
+        // Add tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap, CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(appState.map);
+        
+        // Load India boundary
+        fetch('https://gist.githubusercontent.com/jammastergirish/476c3463ac3752e030098935209831b0/raw/0aa5f0f37807c9a2046429227187c805afdc34a9/India_State_And_UT.json')
+            .then(response => response.json())
+            .then(indiaGeoJSON => {
+                L.geoJSON(indiaGeoJSON, {
+                    style: {
+                        color: '#4b5563',
+                        weight: 1,
+                        fillColor: '#1f2937',
+                        fillOpacity: 0.5
+                    }
+                }).addTo(appState.map);
+            })
+            .catch(error => console.warn('Could not load India boundary:', error));
+        
+        // Add zoom controls
+        L.control.zoom({ position: 'bottomright' }).addTo(appState.map);
+        
+        console.log('Map initialized successfully');
+    } catch (error) {
+        console.error('Map initialization error:', error);
+        throw error;
+    }
 }
 
 /**
@@ -312,7 +336,7 @@ async function handleClearData() {
 /**
  * Perform river analysis
  */
-async function performAnalysis() {
+function performAnalysis() {
     try {
         if (!appState.currentGeoJSON) {
             showError('No river data loaded');
@@ -322,12 +346,16 @@ async function performAnalysis() {
         const discharge = getDischargeValue();
         appState.lastDischarge = discharge;
         
+        console.log('Starting analysis with discharge:', discharge);
+        
         // Run analysis
         const results = calculateRiskProfile(
             discharge,
             appState.currentGeoJSON,
             HYDRODYNAMIC_PARAMS
         );
+        
+        console.log('Analysis results:', results);
         
         appState.analysisResults = results;
         
@@ -349,8 +377,62 @@ async function performAnalysis() {
 }
 
 /**
+ * Update map display with new analysis data
+ */
+function updateMapDisplay(geojsonData) {
+    try {
+        // Remove existing river layer
+        if (appState.riverLayer) {
+            appState.map.removeLayer(appState.riverLayer);
+            appState.riverLayer = null;
+        }
+        
+        if (!geojsonData || !geojsonData.features) {
+            console.error('Invalid data for river layer');
+            return;
+        }
+        
+        appState.riverLayer = L.geoJSON(geojsonData, {
+            style: (feature) => {
+                const riskIndex = feature.properties.calculated?.riskIndex || 1.0;
+                if (riskIndex > 1.5) {
+                    return { color: '#ef4444', weight: 7, opacity: 0.9 };
+                } else if (riskIndex > 1.1) {
+                    return { color: '#f97316', weight: 6, opacity: 0.9 };
+                } else if (riskIndex < 0.6) {
+                    return { color: '#6366f1', weight: 7, opacity: 0.9 };
+                } else if (riskIndex < 0.9) {
+                    return { color: '#3b82f6', weight: 6, opacity: 0.9 };
+                }
+                return { color: '#22c55e', weight: 4, opacity: 0.9 };
+            },
+            onEachFeature: (feature, layer) => {
+                const props = feature.properties;
+                const calc = props.calculated;
+                
+                if (calc) {
+                    const content = `
+                        <div class="space-y-2 text-sm text-white">
+                            <h4 class="font-bold text-lg text-blue-300">${props.name || 'Segment ' + props.id}</h4>
+                            <p><strong class="text-gray-400">Risk:</strong> ${calc.riskCategory}</p>
+                            <p><strong class="text-gray-400">Index:</strong> ${calc.riskIndex}</p>
+                            <hr class="border-white/10 my-2">
+                            <p><strong class="text-gray-400">Shear:</strong> ${calc.shearStress} Pa</p>
+                            <p><strong class="text-gray-400">Velocity:</strong> ${calc.velocity} m/s</p>
+                            <p><strong class="text-gray-400">Depth:</strong> ${calc.flowDepth} m</p>
+                        </div>
+                    `;
+                    layer.bindPopup(content, { className: 'custom-popup' });
+                }
+            }
+        }).addTo(appState.map);
+    } catch (error) {
+        console.error('Map update error:', error);
+    }
+}
+
+/**
  * Format and display analysis results in console
- * @param {object} results - Analysis results
  */
 function formatAndDisplayResults(results) {
     let output = '=== Analysis Results ===\n\n';
@@ -370,9 +452,10 @@ function formatAndDisplayResults(results) {
 }
 
 // ========================================
-// Export Functions
+// Global Access
 // ========================================
 
 // Make functions available globally for debugging
 window.appState = appState;
 window.performAnalysis = performAnalysis;
+console.log('App loaded successfully');
