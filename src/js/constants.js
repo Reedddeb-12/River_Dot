@@ -253,16 +253,4 @@ const EXPORT_CONFIG = {
     precision: 2
 };
 
-export {
-    APP_CONFIG,
-    HYDRODYNAMIC_PARAMS,
-    PARAMETER_RANGES,
-    RISK_CATEGORIES,
-    MAP_CONFIG,
-    DEFAULT_GEOJSON,
-    UI_CONFIG,
-    VALIDATION,
-    ERROR_MESSAGES,
-    SUCCESS_MESSAGES,
-    EXPORT_CONFIG
-};
+console.log('Constants loaded');
